@@ -26,11 +26,12 @@
 // For a detailed specification of the pfodApp protocol, please visit:  http://www.forward.com.au/pfod/
 
 #include "pfod.h"
-#include "robot.h"
+
 #include "adcman.h"
+#include "config.h"
 #include "imu.h"
 #include "perimeter.h"
-#include "config.h"
+#include "robot.h"
 
 RemoteControl::RemoteControl(){
   pfodCmdComplete = false;
@@ -506,8 +507,8 @@ void RemoteControl::sendSonarMenu(boolean update){
   serialPort->print(robot->sonarDistCenter);
   serialPort->print(", ");
   serialPort->print(robot->sonarDistRight);  
-  sendSlider("d03", F("Trigger below (0=off)"), robot->sonarTriggerBelow, "", 1, 3000);       
-	sendSlider("d07", F("Slow below"), robot->sonarSlowBelow, "", 1, 3000);       
+  sendSlider("d03", F("Trigger below (0=off)"), robot->sonarTriggerBelow, "", 1, 1000);
+	sendSlider("d07", F("Slow below"), robot->sonarSlowBelow, "", 1, 1000);
   serialPort->println("}"); 
 }
 
@@ -533,7 +534,7 @@ void RemoteControl::sendPerimeterMenu(boolean update){
 	serialPort->print(robot->perimeter.getSmoothMagnitude(0));
   serialPort->print(F("|e23~timeout "));
   serialPort->print(robot->perimeter.signalTimedOut(0));
-  sendSlider("e08", F("Timed-out if below smag"), robot->perimeter.timedOutIfBelowSmag, "", 1, 2000);  
+  sendSlider("e08", F("Timed-out if below smag"), robot->perimeter.timedOutIfBelowSmag, "", 1, 1000);
   sendSlider("e14", F("Timeout (s) if not inside"), robot->perimeter.timeOutSecIfNotInside, "", 1, 20, 1);  
   sendSlider("e04", F("Trigger timeout"), robot->perimeterTriggerTimeout, "", 1, 2000);
   sendSlider("e05", F("Perimeter out roll time max"), robot->perimeterOutRollTimeMax, "", 1, 8000);       
@@ -543,7 +544,7 @@ void RemoteControl::sendPerimeterMenu(boolean update){
   sendSlider("e17", F("Perimeter tracking reverse time"), robot->perimeterTrackRevTime, "", 1, 8000); 
   sendSlider("e11", F("Transition timeout"), robot->trackingPerimeterTransitionTimeOut, "", 1, 10000);
   sendSlider("e12", F("Track error timeout"), robot->trackingErrorTimeOut, "", 1, 10000);             
-  sendPIDSlider("e07", F("Track"), robot->perimeterPID, 0.1, 100);  
+  sendPIDSlider("e07", F("Track"), robot->perimeterPID, 0.1, 40);
   //serialPort->print(F("|e09~Use differential signal "));
   //sendYesNo(robot->perimeter.useDifferentialPerimeterSignal);    
   serialPort->print(F("|e10~Swap coil polarity "));
@@ -692,8 +693,8 @@ void RemoteControl::sendBatteryMenu(boolean update){
   //bb add
   if (robot->developerActive)
   {
-    sendSlider("j09", F("Calibrate batChgFactor"), robot->batChgFactor, "", 0.001, 0.30, 0.55);
-    sendSlider("j05", F("Calibrate batFactor "), robot->batFactor, "", 0.001, 0.30, 0.55);
+    sendSlider("j09", F("Calibrate batChgFactor"), robot->batChgFactor, "", 0.001, 0.55, 0.45);
+    sendSlider("j05", F("Calibrate batFactor "), robot->batFactor, "", 0.001, 0.55, 0.45);
   }
   //end add
   

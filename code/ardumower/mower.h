@@ -8,10 +8,11 @@ choose your robot type, PCB version, baud rates, pin definitions etc.
 #define MOWER_H
 
 #include <Arduino.h>
-#include "robot.h"
-
 #include "drivers.h"
+
 #include "bt.h"
+#include "drivers.h"
+#include "robot.h"
 
 
 /*  This software requires: 
@@ -22,8 +23,8 @@ choose your robot type, PCB version, baud rates, pin definitions etc.
    
 
 // ------- Choose one Ardumower PCB revision (1.2, 1.3 etc.) ------------------
-//#define PCB_1_2    
-#define PCB_1_3    
+#define PCB_1_2
+//#define PCB_1_3
 
 // ------- Choose robot model (Ardumower or Ardumower Mini) -------------------
 #define ROBOT_ARDUMOWER
@@ -79,7 +80,7 @@ choose your robot type, PCB version, baud rates, pin definitions etc.
 #define pinTilt 35                 // Tilt sensor (BumperDuino)
 #define pinButton 51               // digital ON/OFF button
 #define pinBatteryVoltage A2       // battery voltage sensor
-#define pinBatterySwitch 4         // battery-OFF switch   
+#define pinBatterySwitch 9         // battery-OFF switch
 #define pinChargeVoltage A9        // charging voltage sensor
 #define pinChargeCurrent A8        // charge current sensor
 #define pinChargeRelay 50          // charge relay
@@ -142,9 +143,9 @@ choose your robot type, PCB version, baud rates, pin definitions etc.
 #define DS1307_ADDRESS B1101000
 
 // ---- choose only one perimeter signal code ----
-#define SIGCODE_1  // Ardumower default perimeter signal
+//#define SIGCODE_1  // Ardumower default perimeter signal
 //#define SIGCODE_2  // Ardumower alternative perimeter signal
-//#define SIGCODE_3  // Ardumower alternative perimeter signal
+#define SIGCODE_3  // Ardumower alternative perimeter signal
 
 
 /*

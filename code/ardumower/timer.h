@@ -7,10 +7,10 @@ void Robot::setDefaultTime(){
   datetime.date.day = 1;
   datetime.date.month = 1;
   datetime.date.year = 2013;
-  timer[0].active = false;
+  timer[0].active = true;
   timer[0].daysOfWeek= B01111110;
   timer[0].startTime.hour = 9;
-  timer[0].stopTime.hour = 11;
+  timer[0].stopTime.hour = 19;
 }
 
 
@@ -32,8 +32,8 @@ void Robot::checkTimer(){
           if ((currmin >= startmin) && (currmin < stopmin)){
             // start timer triggered
             stopTimerTriggered = false;
-            if ((stateCurr == STATE_STATION) || (stateCurr == STATE_OFF)){
-              Console.println(F("timer start triggered"));
+            if (((stateCurr == STATE_STATION) || (stateCurr == STATE_OFF)) && (batVoltage >= startChargingIfBelow)){
+              Console.println(F("timer start triggered"));//Bat-Spannung mit überwachen, sonst fährt er gleich beim in die Station fahren wieder raus
               motorMowEnable = true;
               setNextState(STATE_FORWARD, 0);
             } 

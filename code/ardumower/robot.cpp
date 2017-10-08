@@ -24,6 +24,7 @@
 */
 
 #include "robot.h"
+
 #include "config.h"
 #include "flashmem.h"
 
@@ -35,7 +36,7 @@
 #define ADDR_ROBOT_STATS 800
 
 const char* stateNames[] ={"OFF ", "RC  ", "FORW", "ROLL", "REV ", "CIRC", "ERR ", "PFND", "PTRK", "PROL", "PREV", "STAT", "CHARG", "STCHK",
-  "STREV", "STROL", "STFOR", "MANU", "ROLW", "POUTFOR", "POUTREV", "POUTROLL", "TILT", "BUMPREV", "BUMPFORW"};
+  "STREV", "STROL", "STFOR", "MANU", "ROLW", "POUTFOR", "POUTREV", "POUTROLL", "TILT"};
 
 const char* sensorNames[] ={"SEN_PERIM_LEFT", "SEN_PERIM_RIGHT", "SEN_PERIM_LEFT_EXTRA", "SEN_PERIM_RIGHT_EXTRA", "SEN_LAWN_FRONT", "SEN_LAWN_BACK", 
 	"SEN_BAT_VOLTAGE", "SEN_CHG_CURRENT", "SEN_CHG_VOLTAGE", "SEN_MOTOR_LEFT", "SEN_MOTOR_RIGHT", "SEN_MOTOR_MOW", "SEN_BUMPER_LEFT", "SEN_BUMPER_RIGHT", 
@@ -480,14 +481,18 @@ void Robot::readSensors(){
     switch(senSonarTurn) {
       case SEN_SONAR_RIGHT:
         if (sonarRightUse) sonarDistRight = readSensor(SEN_SONAR_RIGHT);
+        if (sonarDistRight==0) sonarDistRight = 200;
         senSonarTurn = SEN_SONAR_LEFT;
         break;
       case SEN_SONAR_LEFT:
         if (sonarLeftUse) sonarDistLeft = readSensor(SEN_SONAR_LEFT);
+        if (sonarDistLeft==0) sonarDistLeft = 200;
+        sonarDistLeft = sonarDistLeft +10;
         senSonarTurn = SEN_SONAR_CENTER;
         break;
       case SEN_SONAR_CENTER:
         if (sonarCenterUse) sonarDistCenter = readSensor(SEN_SONAR_CENTER);
+        if (sonarDistCenter==0) sonarDistCenter = 200;
         senSonarTurn = SEN_SONAR_RIGHT;
         break;
       default:
@@ -647,36 +652,14 @@ void Robot::receiveGPSTime(){
 }
 
 
-void Robot::reverseOrBidir(byte aRollDir) {
-  if (mowPatternCurr == MOW_BIDIR) {
-    if (stateCurr == STATE_FORWARD) {
-      setNextState(STATE_REVERSE, RIGHT);
+void Robot::reverseOrBidir(byte aRollDir){
+  if (mowPatternCurr == MOW_BIDIR){
+    if (stateCurr == STATE_FORWARD) {      
+      setNextState(STATE_REVERSE, RIGHT);     
     } else if (stateCurr == STATE_REVERSE) {
       setNextState(STATE_FORWARD, LEFT);
     }
-  } else {
-    if (stateCurr == STATE_FORWARD) {
-      setNextState(STATE_REVERSE, aRollDir);
-    } else {
-      setNextState(STATE_FORWARD, aRollDir);
-    }
-  }
-}
-
-void Robot::reverseOrBidirBumper(byte aRollDir) {
-  if (mowPatternCurr == MOW_BIDIR) {
-    if (stateCurr == STATE_FORWARD) {
-      setNextState(STATE_REVERSE, RIGHT);
-    } else if (stateCurr == STATE_REVERSE) {
-      setNextState(STATE_FORWARD, LEFT);
-    }
-  } else {
-    if (stateCurr == STATE_FORWARD) {
-      setNextState(STATE_BUMPER_REVERSE, aRollDir);
-    } else if (stateCurr == STATE_REVERSE) {
-      setNextState(STATE_BUMPER_FORWARD, aRollDir);
-    }
-  }
+  } else setNextState(STATE_REVERSE, aRollDir);
 }
 
 // check motor current
@@ -857,6 +840,20 @@ void Robot::checkPerimeterBoundary(){
         }
       }
     }
+    else if ((stateCurr == STATE_REVERSE)) {
+          if (perimeterTriggerTime != 0) {
+            if (millis() >= perimeterTriggerTime){
+              perimeterTriggerTime = 0;
+              setMotorPWM( 0, 0, false );
+              //if ((rand() % 2) == 0){
+              if (rotateLeft){
+              setNextState(STATE_PERI_OUT_REV, LEFT);
+              } else {
+              setNextState(STATE_PERI_OUT_REV, RIGHT);
+              }
+            }
+          }
+        }
   }
 }
 
@@ -1169,15 +1166,7 @@ void Robot::setNextState(byte stateNew, byte dir){
     motorLeftSpeedRpmSet = motorRightSpeedRpmSet = -motorSpeedMaxRpm/1.25;                    
     stateEndTime = millis() + motorReverseTime + motorZeroSettleTime;
   }   
-	else if (stateNew == STATE_BUMPER_REVERSE)  {
-    motorLeftSpeedRpmSet = motorRightSpeedRpmSet = -motorSpeedMaxRpm / 1.25;
-    stateEndTime = millis() + motorReverseTime + motorZeroSettleTime;
-  }
-  else if (stateNew == STATE_BUMPER_FORWARD)  {
-    motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm / 1.25;
-    stateEndTime = millis() + motorReverseTime + motorZeroSettleTime;
-  }  
-	else if (stateNew == STATE_ROLL) {                  
+  else if (stateNew == STATE_ROLL) {                  
       imuDriveHeading = scalePI(imuDriveHeading + PI); // toggle heading 180 degree (IMU)
       if (imuRollDir == LEFT){
         imuRollHeading = scalePI(imuDriveHeading - PI/20);        
@@ -1259,6 +1248,8 @@ void Robot::setNextState(byte stateNew, byte dir){
 
 
 void Robot::loop()  {
+  const unsigned long Area_Timer = 450000;
+  static bool Zonen_aktiv;
   stateTime = millis() - stateStartTime;
   int steer;
   ADCMan.run();
@@ -1418,56 +1409,6 @@ void Robot::loop()  {
         }
       }
       break;
-    case STATE_BUMPER_FORWARD:
-      // driving forward
-      if (mowPatternCurr == MOW_BIDIR) {
-        double ratio = motorBiDirSpeedRatio1;
-        if (stateTime > 4000) ratio = motorBiDirSpeedRatio2;
-        if (rollDir == RIGHT) motorRightSpeedRpmSet = ((double)motorLeftSpeedRpmSet) * ratio;
-        else motorLeftSpeedRpmSet = ((double)motorRightSpeedRpmSet) * ratio;
-      } else {
-        if (millis() >= stateEndTime) {
-          setNextState(STATE_ROLL, rollDir);
-        }
-      }
-      checkErrorCounter();
-      checkTimer();
-      checkRain();
-      checkCurrent();
-      checkBumpers();
-      checkDrop();                                                                                                                            // Dropsensor - Absturzsensor
-      checkSonar();
-      checkPerimeterBoundary();
-      checkLawn();
-      checkTimeout();
-      break;
-    case STATE_BUMPER_REVERSE:
-      // driving reverse
-      checkErrorCounter();
-      checkTimer();
-      checkCurrent();
-      checkBumpers();
-      checkDrop();                                                                                                                            // Dropsensor - Absturzsensor
-      //checkSonar();
-      checkPerimeterBoundary();
-      checkLawn();
-
-      if (mowPatternCurr == MOW_BIDIR) {
-        double ratio = motorBiDirSpeedRatio1;
-        if (stateTime > 4000) ratio = motorBiDirSpeedRatio2;
-        if (rollDir == RIGHT) motorRightSpeedRpmSet = ((double)motorLeftSpeedRpmSet) * ratio;
-        else motorLeftSpeedRpmSet = ((double)motorRightSpeedRpmSet) * ratio;
-        if (stateTime > motorForwTimeMax) {
-          // timeout
-          if (rollDir == RIGHT) setNextState(STATE_FORWARD, LEFT); // toggle roll dir
-          else setNextState(STATE_FORWARD, RIGHT);
-        }
-      } else {
-        if (millis() >= stateEndTime) {
-          setNextState(STATE_ROLL, rollDir);
-        }
-      }
-      break;
     case STATE_PERI_ROLL:
       // perimeter tracking roll
       if (millis() >= stateEndTime) setNextState(STATE_PERI_FIND,0);				
@@ -1489,11 +1430,17 @@ void Robot::loop()  {
     case STATE_PERI_TRACK:
       // track perimeter
       checkCurrent();                  
-      checkBumpersPerimeter();
-      //checkSonar();                   
+      //checkBumpersPerimeter();
+      //checkSonar();
+      if (Zonen_aktiv && (millis() > stateStartTime + Area_Timer) ){
+          	  setNextState(STATE_FORWARD, 0);
+          	  Console.println("BIN IN ZONE!");
+          	  Zonen_aktiv = false;
+            }
       if (batMonitor){
         if (chgVoltage > 5.0){ 
           setNextState(STATE_STATION, 0);
+          Console.println("BIN DRIN!");
         }
       }
       break;
@@ -1501,8 +1448,9 @@ void Robot::loop()  {
       // waiting until auto-start by user or timer triggered
       if (batMonitor){
         if (chgVoltage > 5.0) {
-          if (batVoltage < startChargingIfBelow && (millis()-stateStartTime>2000)){
+          if ((batVoltage < startChargingIfBelow) && (millis()-stateStartTime>2000)){
             setNextState(STATE_STATION_CHARGING,0);
+            Console.println("BLEIB DRIN!");
           } else checkTimer();  
         } else setNextState(STATE_OFF,0);
       }  else checkTimer();
@@ -1554,7 +1502,9 @@ void Robot::loop()  {
       break;
     case STATE_STATION_FORW:
       // forward (charge station)    
-      if (millis() >= stateEndTime) setNextState(STATE_FORWARD,0);				        
+      //if (millis() >= stateEndTime) setNextState(STATE_FORWARD,0);
+      if (millis() >= stateEndTime) setNextState(STATE_PERI_FIND,0);// Nach verlassen der Station Primeter suchen um Zonen anzusteuern
+      Zonen_aktiv = true;
       break;      
   } // end switch  
       

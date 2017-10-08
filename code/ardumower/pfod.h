@@ -38,9 +38,10 @@
 #define PFOD_H
 
 #include <Arduino.h>
+
 #include "drivers.h"
-#include "pid.h"
 #include "perimeter.h"
+#include "pid.h"
 
 // pfodApp state
 enum { PFOD_OFF, PFOD_MENU, PFOD_LOG_SENSORS, 

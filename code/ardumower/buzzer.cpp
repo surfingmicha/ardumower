@@ -1,6 +1,8 @@
 #include "buzzer.h"
-#include "config.h"
+
 #include <Arduino.h>
+
+#include "config.h"
 #ifndef __AVR__
   #include "DueTimer.h"
 #endif

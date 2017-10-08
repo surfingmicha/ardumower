@@ -1,6 +1,7 @@
 #include "flashmem.h"
-#include "drivers.h"
+
 #include "config.h"
+#include "drivers.h"
 
 #ifdef __AVR__
   #include <EEPROM.h>

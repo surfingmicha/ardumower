@@ -23,11 +23,13 @@
 
 
 #include "perimeter.h"
+
 #include <Arduino.h>
 #include <limits.h>
+
 #include "adcman.h"
-#include "drivers.h"
 #include "config.h"
+#include "drivers.h"
 
 //#define pinLED 13                  
 
@@ -51,8 +53,8 @@ Perimeter::Perimeter(){
     lastValue = value;
   }  
 	swapCoilPolarity = false;
-  timedOutIfBelowSmag = 300;
-  timeOutSecIfNotInside = 8;
+  timedOutIfBelowSmag = 48;
+  timeOutSecIfNotInside = 12;
   callCounter = 0;
   mag[0] = mag[1] = 0;
   smoothMag[0] = smoothMag[1] = 0;

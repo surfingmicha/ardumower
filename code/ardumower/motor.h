@@ -156,10 +156,10 @@ void Robot::motorControlPerimeter() {
   perimeterPID.x = 5 * (double(perimeterMag) / perimeterMagMaxValue);
   //tell to the Pid where to go (Pid.w)
   if (perimeterInside) {
-    perimeterPID.w = -0.5;
+    perimeterPID.w = -0.6;
   }
   else {
-    perimeterPID.w = 0.5;
+    perimeterPID.w = 0.4;
   }
   //parameter the PID 
   perimeterPID.y_min = -MaxSpeedperiPwm ;

@@ -1,5 +1,7 @@
 #include "i2c.h"
+
 #include <Wire.h>
+
 #include "config.h"
 
 #if defined(__AVR_ATmega328P__)  
