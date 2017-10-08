@@ -545,6 +545,7 @@ void RemoteControl::sendPerimeterMenu(boolean update){
   sendSlider("e11", F("Transition timeout"), robot->trackingPerimeterTransitionTimeOut, "", 1, 10000);
   sendSlider("e12", F("Track error timeout"), robot->trackingErrorTimeOut, "", 1, 10000);             
   sendPIDSlider("e07", F("Track"), robot->perimeterPID, 0.1, 40);
+  sendSlider("e24", F("Zone"), robot->Zone,"", 1, 2);
   //serialPort->print(F("|e09~Use differential signal "));
   //sendYesNo(robot->perimeter.useDifferentialPerimeterSignal);    
   serialPort->print(F("|e10~Swap coil polarity "));
@@ -576,8 +577,9 @@ void RemoteControl::processPerimeterMenu(String pfodCmd){
     else if (pfodCmd.startsWith("e13")) robot->trackingBlockInnerWheelWhilePerimeterStruggling = !robot->trackingBlockInnerWheelWhilePerimeterStruggling;          
     else if (pfodCmd.startsWith("e14")) processSlider(pfodCmd, robot->perimeter.timeOutSecIfNotInside, 1);     
     else if (pfodCmd.startsWith("e19")) robot->setNextState(STATE_OFF, 0);          
-		else if (pfodCmd.startsWith("e20")) robot->setNextState(STATE_PERI_FIND, 0);                      
-		else if (pfodCmd.startsWith("e21")) robot->setNextState(STATE_PERI_TRACK, 0);                          
+	else if (pfodCmd.startsWith("e20")) robot->setNextState(STATE_PERI_FIND, 0);
+	else if (pfodCmd.startsWith("e21")) robot->setNextState(STATE_PERI_TRACK, 0);
+	else if (pfodCmd.startsWith("e24")) processSlider(pfodCmd, robot->Zone, 1);
   sendPerimeterMenu(true);
 }
 

@@ -1248,8 +1248,6 @@ void Robot::setNextState(byte stateNew, byte dir){
 
 
 void Robot::loop()  {
-  const unsigned long Area_Timer = 450000;
-  static bool Zonen_aktiv;
   stateTime = millis() - stateStartTime;
   int steer;
   ADCMan.run();
@@ -1432,10 +1430,12 @@ void Robot::loop()  {
       checkCurrent();                  
       //checkBumpersPerimeter();
       //checkSonar();
-      if (Zonen_aktiv && (millis() > stateStartTime + Area_Timer) ){
+      if ((Zonen_aktiv) && (millis() > stateStartTime + Area_Timer[Zone]) ){
           	  setNextState(STATE_FORWARD, 0);
           	  Console.println("BIN IN ZONE!");
           	  Zonen_aktiv = false;
+          	  if (Zone == 2) Zone = 0;//Bei jedem Lauf Absprungzone um 1 erhoehen
+          	   else Zone++;
             }
       if (batMonitor){
         if (chgVoltage > 5.0){ 

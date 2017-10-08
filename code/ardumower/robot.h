@@ -378,6 +378,9 @@ class Robot
     int trackingPerimeterTransitionTimeOut;
     int trackingErrorTimeOut;    
     char trackingBlockInnerWheelWhilePerimeterStruggling;
+    unsigned long Area_Timer [3] = {30000, 450000, 730000}; // Zeit auf Perimeter in ms bis zu den einzelnen Absprungzonen
+    bool Zonen_aktiv = false;
+    int Zone;
     //  --------- lawn state ----------------------------
     char lawnSensorUse     ;       // use capacitive Sensor
     int lawnSensorCounter;
