@@ -28,7 +28,7 @@
 #include "config.h"
 #include "flashmem.h"
 
-#define MAGIC 52
+#define MAGIC 52l
 
 
 #define ADDR_USER_SETTINGS 0
@@ -57,7 +57,7 @@ const char* consoleModeNames[] ={"sen_counters", "sen_values", "perimeter", "off
 #include "timer.h"
 // -----------------------------
 
-
+int counter;
 // Spannungsteiler Gesamtspannung ermitteln (Reihenschaltung R1-R2, U2 bekannt, U_GES zu ermitteln)
 float Robot::voltageDividerUges(float R1, float R2, float U2){
 	return (U2/R2 * (R1+R2));  // Uges 
@@ -130,6 +130,7 @@ Robot::Robot(){
   
   gpsLat = gpsLon = gpsX = gpsY = 0;
   robotIsStuckCounter = 0;
+  roll_stuck_counter = 0;
 
   imuDriveHeading = 0;
   imuRollHeading = 0;
@@ -153,7 +154,8 @@ Robot::Robot(){
   sonarDistCenter = sonarDistRight = sonarDistLeft = 0;
   sonarDistCounter = 0;
   tempSonarDistCounter = 0;
-  sonarObstacleTimeout = 0;  
+  sonarObstacleTimeout = 0;
+
 
   batADC = 0;
   batVoltage = 0;
@@ -356,7 +358,7 @@ void Robot::checkButton(){
           // start normal with mowing        
           motorMowEnable = true;
           //motorMowModulate = true;                     
-          mowPatternCurr = MOW_RANDOM;   
+          mowPatternCurr = MOW_RANDOM;
           setNextState(STATE_FORWARD, 0);                
         //}
       } 
@@ -368,6 +370,9 @@ void Robot::checkButton(){
 
 void Robot::readSensors(){
 //NOTE: this function should only read in sensors into variables - it should NOT change any state!
+
+  bool	sonar_warn;
+  bool  sonar_stop;
 
   if (millis() >= nextTimeMotorSense){    
     nextTimeMotorSense = millis() +  50;
@@ -474,38 +479,80 @@ void Robot::readSensors(){
   }
 
 
- if ((sonarUse) && (millis() >= nextTimeSonar)){
-    static char senSonarTurn = SEN_SONAR_RIGHT;    
-    nextTimeSonar = millis() + 80;
+ if (sonarUse){
+
+    sonar_stop = digitalRead(pinSonarLeftTrigger);//Reuse vom linken Sonarsensor-> Triggerleitung ist jetzt Stop-Leitung
+	sonar_warn = digitalRead(pinSonarLeftEcho);//Reuse vom linken Sonarsensor-> Echoleitung ist jetzt Warn-Leitung
+	/*Serial.print("WARN: ");
+	Serial.println(sonar_warn);
+	Serial.print("STOP: ");
+    Serial.println(sonar_stop);*/
+	sonarDistRight = 0;
+	sonarDistLeft = 0;
+	sonarDistCenter = 0;
+	if (sonar_stop == HIGH && sonar_warn == HIGH){
+		sonarDistRight = 1;//Hindernis für Stop rechts erkannt
+	}
+	else if (sonar_stop == HIGH && sonar_warn == LOW){
+		sonarDistLeft = 1;//Hindernis für Stop links erkannt
+	}
+	else if (sonar_warn == HIGH){
+			sonarDistCenter = 1;//Hindernis für Slow down  erkannt
+	}
+	else
+	{
+		sonarDistRight = 0;
+		sonarDistLeft = 0;
+		sonarDistCenter = 0;
+	}
+
+
+
     
-    switch(senSonarTurn) {
-      case SEN_SONAR_RIGHT:
-        if (sonarRightUse) sonarDistRight = readSensor(SEN_SONAR_RIGHT);
-        if (sonarDistRight==0) sonarDistRight = 200;
-        senSonarTurn = SEN_SONAR_LEFT;
-        break;
-      case SEN_SONAR_LEFT:
-        if (sonarLeftUse) sonarDistLeft = readSensor(SEN_SONAR_LEFT);
-        if (sonarDistLeft==0) sonarDistLeft = 200;
-        sonarDistLeft = sonarDistLeft +10;
-        senSonarTurn = SEN_SONAR_CENTER;
-        break;
-      case SEN_SONAR_CENTER:
-        if (sonarCenterUse) sonarDistCenter = readSensor(SEN_SONAR_CENTER);
-        if (sonarDistCenter==0) sonarDistCenter = 200;
-        senSonarTurn = SEN_SONAR_RIGHT;
-        break;
-      default:
-        senSonarTurn = SEN_SONAR_RIGHT;
-        break;
-    }   
-/*
+    /*switch(senSonarTurn) {
+                     case SEN_SONAR_RIGHT:
+                       if (sonarRightUse) sonarDistRight = readSensor(SEN_SONAR_RIGHT);
+                       //Console.print("Right_roh= ");
+                       //Console.println(sonarDistRight);
+                       SonarMedianRight.add(sonarDistRight);
+                       sonarDistRight = SonarMedianRight.getAverage(5);
+                       //Console.print("Right_filtered= ");
+                       //Console.println(sonarDistRight);
+                       if (sonarDistRight==0) sonarDistRight = 200;
+                       senSonarTurn = SEN_SONAR_LEFT;
+                       break;
+                     case SEN_SONAR_LEFT:
+                       if (sonarLeftUse) sonarDistLeft = readSensor(SEN_SONAR_LEFT);
+                       //Console.print("LEFT_roh= ");
+                       //Console.println(sonarDistLeft);
+                       SonarMedianLeft.add(sonarDistLeft);
+                       sonarDistLeft = SonarMedianLeft.getAverage(5);
+                       //Console.print("LEFT_filtered= ");
+                       //Console.println(sonarDistLeft);
+                       if (sonarDistLeft==0) sonarDistLeft = 200;
+                       senSonarTurn = SEN_SONAR_CENTER;
+                       break;
+                     case SEN_SONAR_CENTER:
+                       if (sonarCenterUse) sonarDistCenter = readSensor(SEN_SONAR_CENTER);
+                       //Console.print("Center_roh= ");
+                       //Console.println(sonarDistCenter);
+                       SonarMedianCenter.add(sonarDistCenter);
+                       sonarDistCenter = SonarMedianCenter.getAverage(5);
+                       //Console.print("Center_filtered= ");
+                       //Console.println(sonarDistCenter);
+                       if (sonarDistCenter==0) sonarDistCenter = 200;
+                       senSonarTurn = SEN_SONAR_RIGHT;
+                       break;
+                     default:
+                       senSonarTurn = SEN_SONAR_RIGHT;
+                       break;
+                   }
+
     if (sonarRightUse) sonarDistRight = readSensor(SEN_SONAR_RIGHT);    
     if (sonarLeftUse) sonarDistLeft = readSensor(SEN_SONAR_LEFT);    
-    if (sonarCenterUse) sonarDistCenter = readSensor(SEN_SONAR_CENTER); 
-*/         
-  }
+    if (sonarCenterUse) sonarDistCenter = readSensor(SEN_SONAR_CENTER);*/
 
+  }
 
   if ((bumperUse) && (millis() >= nextTimeBumper)){    
     nextTimeBumper = millis() + 100;               
@@ -653,14 +700,38 @@ void Robot::receiveGPSTime(){
 
 
 void Robot::reverseOrBidir(byte aRollDir){
+
   if (mowPatternCurr == MOW_BIDIR){
-    if (stateCurr == STATE_FORWARD) {      
-      setNextState(STATE_REVERSE, RIGHT);     
+    if (stateCurr == STATE_FORWARD) {
+      setNextState(STATE_REVERSE, RIGHT);
     } else if (stateCurr == STATE_REVERSE) {
       setNextState(STATE_FORWARD, LEFT);
     }
-  } else setNextState(STATE_REVERSE, aRollDir);
+  } else if (sonarDistCounter_flag == true){
+	  if (sonar_reverse_count == 0) {
+		  setNextState(STATE_REVERSE, aRollDir);
+	  }
+	  else
+	  {
+		  setNextState(STATE_ROLL, aRollDir);//no Reverse if a sonar event happened directly after roll back
+	  }
+	  sonar_reverse_count++;
+
+	  Serial.print("*******************************************************sonar_reverse_count = ");
+	  Serial.println(sonar_reverse_count);
+
+    }
+    else if (stateCurr == STATE_FORWARD){
+  	  setNextState(STATE_REVERSE, aRollDir);
+  	Serial.println("test2" );
+      }
+    else {
+    	setNextState(STATE_FORWARD, aRollDir);
+    	Serial.println("test3" );
+    }
+  sonarDistCounter_flag = false;
 }
+
 
 // check motor current
 void Robot::checkCurrent(){
@@ -670,7 +741,7 @@ void Robot::checkCurrent(){
   //bb add test MotorCurrent in manual mode and stop immediatly If >Powermax
   if (stateCurr == STATE_MANUAL)
   {
-    if (motorLeftSense >= motorPowerMax)
+    if (motorLeftSense >= (motorPowerMax *2))//Sobald Motor getauscht wurde Faktor wieder entfernen!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     {
        motorLeftSenseCounter++;
 			 setSensorTriggered(SEN_MOTOR_LEFT);
@@ -715,7 +786,7 @@ void Robot::checkCurrent(){
   }       
 
     
-  if (motorLeftSense >=motorPowerMax){  
+  if (motorLeftSense >= (motorPowerMax *2)){//Sobald Motor getauscht wurde Faktor wieder entfernen!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // left wheel motor overpowered    
     if (     ((stateCurr == STATE_FORWARD) || (stateCurr == STATE_PERI_FIND)  || (stateCurr == STATE_PERI_TRACK)) 
           && (millis() > stateStartTime + motorPowerIgnoreTime)){    				  
@@ -765,6 +836,7 @@ void Robot::checkBumpers(){
 
   if ((bumperLeft || bumperRight)) {    
       if (bumperLeft) {
+        block_sonar = 1;
         reverseOrBidir(RIGHT);          
       } else {
         reverseOrBidir(LEFT);
@@ -798,6 +870,7 @@ void Robot::checkBumpersPerimeter(){
 
 // check perimeter as a boundary
 void Robot::checkPerimeterBoundary(){
+  int smag_val,mag_val_abs;
   if (millis() >= nextTimeRotationChange){
       nextTimeRotationChange = millis() + 60000;
       rotateLeft = !rotateLeft;
@@ -814,9 +887,24 @@ void Robot::checkPerimeterBoundary(){
     }
   } else {  
     if (stateCurr == STATE_FORWARD) {
+    	smag_val = perimeter.getSmoothMagnitude(0);
+    	mag_val_abs = abs(perimeter.getMagnitude(0));
+    	//Console.print("SMAG= ");
+    	//Console.println(smag_val);
+    	//Console.print("MAG= ");
+    	//Console.println(mag_val_abs);
+    	//Console.print("block_sonar= ");
+    	//Console.println(block_sonar);
+       	//Console.print("perimeterTriggerTime= ");
+        //Console.println(perimeterTriggerTime);
+        //Console.println("**************************************************************************************");
+
+
       if (perimeterTriggerTime != 0) {
-        if (millis() >= perimeterTriggerTime){        
+        if ((smag_val > 400) || (mag_val_abs) > 400){//Nur in der Nähe des Perimeter muss auf "outside" reagiert werden
+        	//if ((millis() >= perimeterTriggerTime) && (smag_val > 400)){//Nur in der Nähe des Perimeter muss auf "outside" reagiert werden
           perimeterTriggerTime = 0;
+          block_sonar = 1;
           //if ((rand() % 2) == 0){  
           if(rotateLeft){  
           setNextState(STATE_PERI_OUT_REV, LEFT);
@@ -830,12 +918,13 @@ void Robot::checkPerimeterBoundary(){
       if (perimeterTriggerTime != 0) {
         if (millis() >= perimeterTriggerTime){ 
           perimeterTriggerTime = 0;
+          block_sonar = 1;
           setMotorPWM( 0, 0, false );
           //if ((rand() % 2) == 0){
           if (rotateLeft){    
-          setNextState(STATE_PERI_OUT_FORW, LEFT);
+          setNextState(STATE_PERI_OUT_REV, LEFT);
           } else {
-          setNextState(STATE_PERI_OUT_FORW, RIGHT);
+          setNextState(STATE_PERI_OUT_REV, RIGHT);
           }  
         }
       }
@@ -844,13 +933,19 @@ void Robot::checkPerimeterBoundary(){
           if (perimeterTriggerTime != 0) {
             if (millis() >= perimeterTriggerTime){
               perimeterTriggerTime = 0;
+              block_sonar = 1;
               setMotorPWM( 0, 0, false );
               //if ((rand() % 2) == 0){
-              if (rotateLeft){
-              setNextState(STATE_PERI_OUT_REV, LEFT);
+              if (rotateLeft){//Hier fuhr er gerade aus weiter wenn kurz vor dem Überfahren des Perimeter ein Sonar-Event stattgefunden hat
+                        setNextState(STATE_PERI_OUT_REV, LEFT);
+                        } else {
+                        setNextState(STATE_PERI_OUT_REV, RIGHT);
+                        }
+              /*if (rotateLeft){
+              setNextState(STATE_PERI_OUT_FORW, LEFT);
               } else {
-              setNextState(STATE_PERI_OUT_REV, RIGHT);
-              }
+              setNextState(STATE_PERI_OUT_FORW, RIGHT);
+              }*/
             }
           }
         }
@@ -895,6 +990,7 @@ void Robot::checkRain(){
 
 // check sonar
 void Robot::checkSonar(){
+
   if(!sonarUse) return;
   if (millis() < nextTimeCheckSonar) return;
   nextTimeCheckSonar = millis() + 200;
@@ -905,9 +1001,7 @@ void Robot::checkSonar(){
           || (  (mowPatternCurr == MOW_BIDIR) && ((stateCurr == STATE_FORWARD) || (stateCurr == STATE_REVERSE))  )  
      ){
         if (sonarObstacleTimeout == 0) {
-          if (     ((NO_ECHO != sonarDistCenter) && (sonarDistCenter < sonarSlowBelow)) 
-               ||  ((NO_ECHO != sonarDistRight) && (sonarDistRight < sonarSlowBelow)) 
-               ||  ((NO_ECHO != sonarDistLeft) && (sonarDistLeft < sonarSlowBelow))  ) {    
+          if (sonarDistCenter == 1) {
               tempSonarDistCounter++;
             if (tempSonarDistCounter >= 5){
              // Console.println("sonar slow down");
@@ -924,25 +1018,19 @@ void Robot::checkSonar(){
           motorRightSpeedRpmSet *= 1.5;
         }
    }  
-  
-	 if (sonarTriggerBelow != 0){
-		if ((sonarDistCenter != NO_ECHO) && (sonarDistCenter < sonarTriggerBelow)) {
-			sonarDistCounter++;   
-			setSensorTriggered(SEN_SONAR_CENTER);
-			if (rollDir == RIGHT) reverseOrBidir(LEFT); // toggle roll dir
-				else reverseOrBidir(RIGHT);    
-		}
-		if ((sonarDistRight != NO_ECHO) && (sonarDistRight < sonarTriggerBelow)){
-			sonarDistCounter++;
-			setSensorTriggered(SEN_SONAR_RIGHT);
-			reverseOrBidir(LEFT);
-		}
-		if ((sonarDistLeft != NO_ECHO) && (sonarDistLeft < sonarTriggerBelow)){
-			sonarDistCounter++; 
-			setSensorTriggered(SEN_SONAR_LEFT);
-			reverseOrBidir(RIGHT);
-		}
-	}
+  if (sonarTriggerBelow != 0){
+
+  		if (sonarDistRight == 1){
+  			sonarDistCounter++;
+  			setSensorTriggered(SEN_SONAR_RIGHT);
+  			reverseOrBidir(LEFT);
+  		}
+  		if ((sonarDistLeft == 1)){
+  			sonarDistCounter++;
+  			setSensorTriggered(SEN_SONAR_LEFT);
+  			reverseOrBidir(RIGHT);
+  		}
+  	}
 }
 
 
@@ -979,50 +1067,68 @@ void Robot::checkTilt(){
 void Robot::checkIfStuck(){
   if (millis() < nextTimeCheckIfStuck) return;
   nextTimeCheckIfStuck = millis() + 300;
-  if ((gpsUse) && (gps.hdop() < 500))  {
+  if ((gpsUse) /*&& (gps.hdop() < 500)*/)  {
     //float gpsSpeedRead = gps.f_speed_kmph();
     float gpsSpeed = gps.f_speed_kmph();
-    if (gpsSpeedIgnoreTime >= motorReverseTime) gpsSpeedIgnoreTime = motorReverseTime - 500;
+    //if (gpsSpeedIgnoreTime >= motorReverseTime) gpsSpeedIgnoreTime = motorReverseTime - 500;
     // low-pass filter
     // double accel = 0.1;
     // float gpsSpeed = (1.0-accel) * gpsSpeed + accel * gpsSpeedRead;
-    // Console.println(gpsSpeed);
-    // Console.println(robotIsStuckCounter);
-    // Console.println(errorCounter[ERR_STUCK]);
-    if ((stateCurr != STATE_MANUAL) && (stateCurr != STATE_REMOTE) && (gpsSpeed <= stuckIfGpsSpeedBelow)    // checks if mower is stuck and counts up
-      && ((motorLeftRpmCurr && motorRightRpmCurr) != 0) && (millis() > stateStartTime + gpsSpeedIgnoreTime) ){
-      robotIsStuckCounter++;
+    //Console.print("gpsSpeed= ");Console.println(gpsSpeed);
+     //Console.print("robotIsStuckCounter= ");Console.println(robotIsStuckCounter);
+    //Console.print("motorLeftSenseCurrent= ");Console.println(motorLeftSenseCurrent);
+    //Console.print("Stuck_Counter= ");Console.println(errorCounter[ERR_STUCK]);
+    Console.print("state_transition= ");Console.println(state_transition);
+    if (stateCurr == STATE_ROLL && state_transition == true){
+    	roll_stuck_counter++;
+    	state_transition = false;
+
+    	Console.print("roll_stuck_counter= ");Console.println(roll_stuck_counter);
+    }
+    state_transition = false;
+    if (
+    	(stateCurr == STATE_FORWARD || stateCurr == STATE_PERI_TRACK)
+		&& (motorLeftSenseCurrent > 10)
+    	&& (motorRightSenseCurrent > 10)
+		&& (gpsSpeed <= stuckIfGpsSpeedBelow)
+		&& (millis() > stateStartTime + gpsSpeedIgnoreTime)
+		) {
+    	robotIsStuckCounter++;
+    	Console.println(F("stuck warning!"));
+
+    } else {robotIsStuckCounter = 0;}    // resets temporary counter to zero
+
+    if (
+    	(gpsSpeed > stuckIfGpsSpeedBelow) // unstuck. Reset error and start mowing if in forward or peri tracking
+    	&& ((stateCurr == STATE_FORWARD) || (stateCurr == STATE_PERI_TRACK))
+       ){
+    	 if(errorCounterMax[ERR_STUCK] != 0){
+    		 motorMowEnable = true;//once after unstucked activate the mower
+    		 Console.println(F("release mower!"));
+    	 }
+    	 robotIsStuckCounter = 0;
+
+    	 roll_stuck_counter = 0;
+    	 errorCounterMax[ERR_STUCK] = 0;
     }
 
-    else {                         // if mower gets unstuck it resets errorCounterMax to zero and reenabling motorMow
-        robotIsStuckCounter = 0;    // resets temporary counter to zero
-      if ( (errorCounter[ERR_STUCK] == 0) && (stateCurr != STATE_OFF) && (stateCurr != STATE_MANUAL) && (stateCurr != STATE_STATION) 
-        && (stateCurr != STATE_STATION_CHARGING) && (stateCurr != STATE_STATION_CHECK) 
-        && (stateCurr != STATE_STATION_REV) && (stateCurr != STATE_STATION_ROLL) 
-        && (stateCurr != STATE_REMOTE) && (stateCurr != STATE_ERROR)) {
-        motorMowEnable = true;
-        errorCounterMax[ERR_STUCK] = 0;
-      }
-      return;
-    }
 
-    if (robotIsStuckCounter >= 5){    
+    if (robotIsStuckCounter >= 10 || roll_stuck_counter >= 10){
       motorMowEnable = false;
-      if (errorCounterMax[ERR_STUCK] >= 3){   // robot is definately stuck and unable to move
+      if (errorCounterMax[ERR_STUCK] >= 5){   // robot is definately stuck and unable to move
         Console.println(F("Error: Mower is stuck"));
         addErrorCounter(ERR_STUCK);
         setNextState(STATE_ERROR,0);    //mower is switched into ERROR
-        //robotIsStuckCounter = 0;
+        robotIsStuckCounter = 0;
+        roll_stuck_counter = 0;
       }
-      else if (errorCounter[ERR_STUCK] < 3) {   // mower tries 3 times to get unstuck
-        if (stateCurr == STATE_FORWARD){
-          motorMowEnable = false;
-					addErrorCounter(ERR_STUCK);             
+      else if (errorCounterMax[ERR_STUCK] < 5) {   // mower tries 3 times to get unstuck
+        if (stateCurr == STATE_FORWARD || stateCurr == STATE_PERI_TRACK){
+          		addErrorCounter(ERR_STUCK);
 					setMotorPWM( 0, 0, false );  
 					reverseOrBidir(RIGHT);
 				}
 				else if (stateCurr == STATE_ROLL){
-					motorMowEnable = false;
 					addErrorCounter(ERR_STUCK);             
 					setMotorPWM( 0, 0, false );  
 					setNextState (STATE_FORWARD,0);
@@ -1031,6 +1137,7 @@ void Robot::checkIfStuck(){
     }
   }
 }
+
 
 
 void Robot::processGPSData()
@@ -1046,6 +1153,13 @@ void Robot::processGPSData()
     gpsLat = nlat;
     return;
   }
+  String stringLAT = String(gpsLat,8);
+  String stringLON = String(gpsLon,8);
+  String string_stateCurr = String(stateCurr,8);
+  counter++;
+  String stringCounter = String(counter);
+  ESP32LORAport.println(stringLON + ";" + stringLAT + ";" + string_stateCurr + ";" + stringCounter);
+  if (counter > 99) counter = 0;
   gpsX = (float)gps.distance_between(nlat,  gpsLon,  gpsLat, gpsLon);
   gpsY = (float)gps.distance_between(gpsLat, nlon,   gpsLat, gpsLon);
 }
@@ -1241,7 +1355,8 @@ void Robot::setNextState(byte stateNew, byte dir){
   // state has changed    
   stateStartTime = millis();
   stateLast = stateCurr;
-  stateCurr = stateNext;    
+  stateCurr = stateNext;
+  state_transition = true;
   perimeterTriggerTime=0;
   printInfo(Console);          
 }
@@ -1264,7 +1379,6 @@ void Robot::loop()  {
   checkTilt(); 
   
   if (imuUse) imu.update();  
-
   if (gpsUse) { 
     gps.feed();
     processGPSData();    
@@ -1339,13 +1453,19 @@ void Robot::loop()  {
       //bb add end
       break;
     case STATE_FORWARD:
-      // driving forward            
+      // driving forward
+      Zonen_aktiv = false; //Zur Sicherheit das Zonenfahren zurücksetzen sobald der mower normal forwärts fährt
       if (mowPatternCurr == MOW_BIDIR){
         double ratio = motorBiDirSpeedRatio1;
         if (stateTime > 4000) ratio = motorBiDirSpeedRatio2;
         if (rollDir == RIGHT) motorRightSpeedRpmSet = ((double)motorLeftSpeedRpmSet) * ratio;
           else motorLeftSpeedRpmSet = ((double)motorRightSpeedRpmSet) * ratio;                            
       }             
+      if ((millis()-stateStartTime>5000)){
+    	  sonar_reverse_count = 0; // wenn er wieder ein paar sekunden gerade aus fährt darf er bei einem sonar-event wieder retur fahren
+    	  block_sonar = 0;
+      }
+
       checkErrorCounter();    
       checkTimer();
       checkRain();
@@ -1359,9 +1479,9 @@ void Robot::loop()  {
       break;
     case STATE_ROLL:
       checkCurrent();            
-      checkBumpers();
+      //checkBumpers();
       checkDrop();                                                                                                                            // Dropsensor - Absturzsensor
-      //checkSonar();             
+      //checkSonar();
       checkPerimeterBoundary(); 
       checkLawn();
       // making a roll (left/right)            
@@ -1385,7 +1505,7 @@ void Robot::loop()  {
         checkErrorCounter();    
         checkTimer();
         checkCurrent();            
-        checkBumpers();
+        //checkBumpers();
         checkDrop();                                                                                                                            // Dropsensor - Absturzsensor
         //checkSonar();             
         checkPerimeterBoundary();      
@@ -1432,6 +1552,7 @@ void Robot::loop()  {
       //checkSonar();
       if ((Zonen_aktiv) && (millis() > stateStartTime + Area_Timer[Zone]) ){
           	  setNextState(STATE_FORWARD, 0);
+          	perimeterTriggerTime = 0;
           	  Console.println("BIN IN ZONE!");
           	  Zonen_aktiv = false;
           	  if (Zone == 2) Zone = 0;//Bei jedem Lauf Absprungzone um 1 erhoehen
@@ -1473,8 +1594,8 @@ void Robot::loop()  {
       break;
     case STATE_PERI_OUT_REV: 
       checkPerimeterBoundary();      
-     // if (millis() >= stateEndTime) setNextState(STATE_PERI_OUT_ROLL, rollDir);   
-      if (perimeterInside || (millis() >= stateEndTime)) setNextState (STATE_PERI_OUT_ROLL, rollDir); 
+      if (millis() >= stateEndTime) setNextState(STATE_PERI_OUT_ROLL, rollDir);
+      //if (perimeterInside || (millis() >= stateEndTime)) setNextState (STATE_PERI_OUT_ROLL, rollDir);
       break;
     case STATE_PERI_OUT_ROLL: 
       if (millis() >= stateEndTime) setNextState(STATE_FORWARD,0);                

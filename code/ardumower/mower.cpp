@@ -380,12 +380,12 @@ void Mower::setup(){
   pinMode(pinDropRight, INPUT_PULLUP);                                                                                                 // Dropsensor - Absturzsensor - Intern Pullab Widerstand aktiviert (Auslösung erfolgt gegen GND)
   
   // sonar
-  pinMode(pinSonarCenterTrigger, OUTPUT); 
-  pinMode(pinSonarCenterEcho, INPUT); 
-  pinMode(pinSonarLeftTrigger, OUTPUT); 
+  //pinMode(pinSonarCenterTrigger, OUTPUT);
+  //pinMode(pinSonarCenterEcho, INPUT);
+  pinMode(pinSonarLeftTrigger, INPUT);
   pinMode(pinSonarLeftEcho, INPUT); 
-  pinMode(pinSonarRightTrigger, OUTPUT); 
-  pinMode(pinSonarRightEcho, INPUT); 
+  //pinMode(pinSonarRightTrigger, OUTPUT);
+  //pinMode(pinSonarRightEcho, INPUT);
   
   // rain
   pinMode(pinRain, INPUT);
@@ -427,14 +427,17 @@ void Mower::setup(){
 
   Robot::setup();  
 
-  if (esp8266Use) {
+  Console.println(F("ESP32LORA Config"));
+  ESP32LORAport.begin(ESP32LORA_BAUDRATE);
+  /*if (esp8266Use) {
     Console.println(F("Sending ESP8266 Config"));
     ESP8266port.begin(ESP8266_BAUDRATE);
     ESP8266port.println(esp8266ConfigString);
     ESP8266port.flush();
     ESP8266port.end();
     rc.initSerial(&ESP8266port, ESP8266_BAUDRATE);
-  } else if (bluetoothUse) {
+  }*/
+  if (bluetoothUse) {
     rc.initSerial(&Bluetooth, BLUETOOTH_BAUDRATE);
   }
 

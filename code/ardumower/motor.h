@@ -156,11 +156,11 @@ void Robot::motorControlPerimeter() {
   perimeterPID.x = 5 * (double(perimeterMag) / perimeterMagMaxValue);
   //tell to the Pid where to go (Pid.w)
   if (perimeterInside) {
-    perimeterPID.w = -0.6;
-  }
+    perimeterPID.w = -0.6;//-0.6
+    }
   else {
-    perimeterPID.w = 0.4;
-  }
+    perimeterPID.w = -0.4;//-0.4
+    }
   //parameter the PID 
   perimeterPID.y_min = -MaxSpeedperiPwm ;
   perimeterPID.y_max = MaxSpeedperiPwm ;
@@ -401,7 +401,7 @@ void Robot::motorMowControl(){
   if (millis() < nextTimeMotorMowControl) return;
 
     nextTimeMotorMowControl = millis() + 100;
-    if (motorMowForceOff) motorMowEnable = false;
+    if (motorMowForceOff)motorMowEnable = false;
   double mowSpeed ;
   if (!motorMowEnable) {
     mowSpeed = 0;         

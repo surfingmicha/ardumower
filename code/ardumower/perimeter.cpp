@@ -204,9 +204,27 @@ boolean Perimeter::isInside(byte idx){
   }
 }
 
+/*boolean Perimeter::signalTimedOut(byte idx){
+  if (getSmoothMagnitude(idx) < timedOutIfBelowSmag) return true;
+  if (millis() - lastInsideTime[idx] > timeOutSecIfNotInside * 1000) return true;
+  return false;
+}*/
 
 boolean Perimeter::signalTimedOut(byte idx){
-  if (getSmoothMagnitude(idx) < timedOutIfBelowSmag) return true;
+  if (abs(mag[idx]) < timedOutIfBelowSmag) {
+	  if (mag[idx] > 0){//outside
+		  outside_counter++;//wenn der Perimeter ausfällt jittert die in/out erkennung
+	  }
+  }
+  else{
+	  outside_counter = 0;
+  }
+  if (outside_counter > 20) return true;
+  //Console.println("*******************************************************************************************************************************************");
+  //Console.print("outside_counter= ");
+  //Console.println(outside_counter);
+  //Console.print("mag[idx]");
+  //Console.println(mag[idx]);
   if (millis() - lastInsideTime[idx] > timeOutSecIfNotInside * 1000) return true;
   return false;
 }

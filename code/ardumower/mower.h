@@ -116,6 +116,7 @@ choose your robot type, PCB version, baud rates, pin definitions etc.
 #define CONSOLE_BAUDRATE    19200       // baudrate used for console
 #define BLUETOOTH_BAUDRATE  19200      // baudrate used for communication with Bluetooth module (Ardumower default: 19200)
 #define ESP8266_BAUDRATE    115200      // baudrate used for communication with esp8266 Wifi module
+#define ESP32LORA_BAUDRATE  9600      // baudrate used for communication with esp32 LORA module
 #define BLUETOOTH_PIN       1234
 
 
@@ -123,7 +124,8 @@ choose your robot type, PCB version, baud rates, pin definitions etc.
 #ifdef __AVR__
   // Arduino Mega
   #define Console Serial
-  #define ESP8266port Serial1
+  //#define ESP8266port Serial1
+  #define ESP32LORAport Serial1
   #define Bluetooth Serial2
 #else 
   // Arduino Due  
@@ -137,7 +139,7 @@ choose your robot type, PCB version, baud rates, pin definitions etc.
 // ultrasonic sensor max echo time (WARNING: do not set too high, it consumes CPU time!)
 #define MAX_ECHO_TIME 3000     
 #define MIN_ECHO_TIME 300    
-#define NO_ECHO 0
+#define NO_ECHO 200
 
 // ------- I2C addresses --------------------------------------------------------------
 #define DS1307_ADDRESS B1101000

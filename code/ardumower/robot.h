@@ -132,30 +132,29 @@ enum {
 
 // finate state machine states
 enum { 
-  STATE_OFF,          // off
-  STATE_REMOTE,       // model remote control (R/C)
-  STATE_FORWARD,      // drive forward
-  STATE_ROLL,         // drive roll right/left  
-  STATE_REVERSE,      // drive reverse
-
-  STATE_CIRCLE,       // drive circle  
-  STATE_ERROR,        // error
-  STATE_PERI_FIND,    // perimeter find 
-  STATE_PERI_TRACK,   // perimeter track
-  STATE_PERI_ROLL,    // perimeter roll
-  STATE_PERI_REV,     // perimeter reverse
-  STATE_STATION,       // in station
-  STATE_STATION_CHARGING,       // in station charging
-  STATE_STATION_CHECK, //checks if station is present
-  STATE_STATION_REV,   // charge reverse
-  STATE_STATION_ROLL,  // charge roll
-  STATE_STATION_FORW,  // charge forward
-  STATE_MANUAL,       // manual navigation  
-  STATE_ROLL_WAIT,    // drive roll right/left
-  STATE_PERI_OUT_FORW, // outside perimeter forward driving without checkPerimeterBoundary()
-  STATE_PERI_OUT_REV,   // outside perimeter reverse driving without checkPerimeterBoundary()
-  STATE_PERI_OUT_ROLL,   // outside perimeter rolling driving without checkPerimeterBoundary()
-  STATE_TILT_STOP,    // tilt sensor activated, stop motors, wait for un-tilt
+  STATE_OFF,             // 0 off
+  STATE_REMOTE,          // 1 model remote control (R/C)
+  STATE_FORWARD,         // 2 drive forward
+  STATE_ROLL,            // 3 drive roll right/left
+  STATE_REVERSE,         // 4 drive reverse
+  STATE_CIRCLE,          // 5 drive circle
+  STATE_ERROR,           // 6 error
+  STATE_PERI_FIND,       // 7 perimeter find
+  STATE_PERI_TRACK,      // 8 perimeter track
+  STATE_PERI_ROLL,       // 9 perimeter roll
+  STATE_PERI_REV,        // 10 perimeter reverse
+  STATE_STATION,         // 11 in station
+  STATE_STATION_CHARGING,// 12 in station charging
+  STATE_STATION_CHECK,   // 13 checks if station is present
+  STATE_STATION_REV,     // 14 charge reverse
+  STATE_STATION_ROLL,    // 15 charge roll
+  STATE_STATION_FORW,    // 16 charge forward
+  STATE_MANUAL,          // 17 manual navigation
+  STATE_ROLL_WAIT,       // 18 drive roll right/left
+  STATE_PERI_OUT_FORW,   // 19 outside perimeter forward driving without checkPerimeterBoundary()
+  STATE_PERI_OUT_REV,    // 20 outside perimeter reverse driving without checkPerimeterBoundary()
+  STATE_PERI_OUT_ROLL,   // 21 outside perimeter rolling driving without checkPerimeterBoundary()
+  STATE_TILT_STOP,       // 22 tilt sensor activated, stop motors, wait for un-tilt
 };
 
 // roll types
@@ -180,7 +179,8 @@ class Robot
     // --------- state machine --------------------------
     byte stateCurr;
     byte stateLast;
-    byte stateNext;    
+    byte stateNext;
+    bool state_transition;
     unsigned long stateTime;
     const char* stateName();
     unsigned long stateStartTime;
@@ -211,6 +211,7 @@ class Robot
     float stuckIfGpsSpeedBelow ;
     int gpsSpeedIgnoreTime ; // how long gpsSpeed is ignored when robot switches into a new STATE (in ms)
     int robotIsStuckCounter ;
+    int roll_stuck_counter;
     // -------- odometry state --------------------------
     char odometryUse       ;       // use odometry?
     int wheelDiameter     ;        // wheel diameter (mm)
@@ -363,6 +364,9 @@ class Robot
     PID perimeterPID ;             // perimeter PID controller
     int perimeterMag ;             // perimeter magnitude
     RunningMedian perimeterMagMedian = RunningMedian(300);
+    RunningMedian SonarMedianLeft = RunningMedian(200);
+    RunningMedian SonarMedianCenter = RunningMedian(200);
+    RunningMedian SonarMedianRight = RunningMedian(200);
     float PeriCoeffAccel;
     int leftSpeedperi;
     int rightSpeedperi;
@@ -380,6 +384,8 @@ class Robot
     char trackingBlockInnerWheelWhilePerimeterStruggling;
     unsigned long Area_Timer [3] = {30000, 450000, 730000}; // Zeit auf Perimeter in ms bis zu den einzelnen Absprungzonen
     bool Zonen_aktiv = false;
+    int sonar_reverse_count = 0;
+    byte block_sonar = 0;
     int Zone;
     //  --------- lawn state ----------------------------
     char lawnSensorUse     ;       // use capacitive Sensor
@@ -408,6 +414,10 @@ class Robot
     unsigned int sonarDistRight ;
     unsigned int sonarDistLeft ; 
     unsigned int sonarDistCounter ;
+    unsigned int TempSonarDistLeftCounter ;
+    unsigned int TempSonarDistRightCounter ;
+    unsigned int TempSonarDistCenterCounter ;
+    bool sonarDistCounter_flag ;
     unsigned int tempSonarDistCounter ;
     unsigned long sonarObstacleTimeout ;
     unsigned long nextTimeSonar ;
